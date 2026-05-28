@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function Home() {
   const router = useRouter();
@@ -109,6 +110,24 @@ export default function Home() {
           >
             Start Game →
           </button>
+
+          {/* Nav links */}
+          <div className="flex justify-center gap-4 pt-1">
+            <Link
+              href="/leaderboard"
+              className="text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ color: "rgba(255,255,255,0.35)" }}
+            >
+              🏆 Leaderboard
+            </Link>
+            <Link
+              href="/admin"
+              className="text-xs font-medium transition-opacity hover:opacity-80"
+              style={{ color: "rgba(255,255,255,0.25)" }}
+            >
+              🛡️ Admin
+            </Link>
+          </div>
         </div>
       </div>
     </div>

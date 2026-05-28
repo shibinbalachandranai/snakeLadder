@@ -19,6 +19,7 @@ import {
   setMuted,
   isMuted,
 } from "@/lib/sounds";
+import { saveGame } from "@/lib/storage";
 
 const PLAYER_COLORS = ["#6366f1", "#f43f5e"];
 const STEP_MS = 120; // ms per square when animating
@@ -144,9 +145,23 @@ function GameScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.rollId]);
 
-  // Win sound
+  // Win sound + persist result
   useEffect(() => {
-    if (state.phase === "won") playWin();
+    if (state.phase === "won" && state.winner !== null) {
+      playWin();
+      saveGame({
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        mode: state.mode,
+        duration: state.stats[0].totalMoves + state.stats[1].totalMoves,
+        players: [
+          { name: state.players[0].name, stats: state.stats[0] },
+          { name: state.players[1].name, stats: state.stats[1] },
+        ],
+        winner: state.winner,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase]);
 
   const doRoll = useCallback(() => {
