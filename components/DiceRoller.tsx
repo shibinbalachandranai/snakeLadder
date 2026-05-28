@@ -21,32 +21,78 @@ const DOT_POSITIONS: Record<number, [number, number][]> = {
 export default function DiceRoller({ value, rolling, disabled, onRoll }: DiceRollerProps) {
   const dots = value ? DOT_POSITIONS[value] : [];
 
-  // ── Cheat: Ctrl + double-click to toggle auto-roll ──────────────
   const [autoMode, setAutoMode] = useState(false);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSpaceRef = useRef(0);
+  const tapCountRef = useRef(0);
+  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const scheduleAutoRoll = useCallback(() => {
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     autoTimerRef.current = setTimeout(onRoll, 500);
   }, [onRoll]);
 
-  // Whenever disabled clears (our turn, animation done) fire next auto-roll
   useEffect(() => {
     if (!autoMode) return;
     if (!disabled && !rolling) scheduleAutoRoll();
   }, [autoMode, disabled, rolling, scheduleAutoRoll]);
 
-  // Cleanup on unmount
-  useEffect(() => () => { if (autoTimerRef.current) clearTimeout(autoTimerRef.current); }, []);
+  useEffect(() => () => {
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+  }, []);
 
-  function handleDiceDoubleClick(e: React.MouseEvent) {
-    if (!e.ctrlKey) return;
-    e.preventDefault();
+  function toggleAuto() {
     setAutoMode((prev) => {
       const next = !prev;
       if (!next && autoTimerRef.current) clearTimeout(autoTimerRef.current);
       return next;
     });
+  }
+
+  // ── Keyboard: Space = roll · Ctrl+Space×2 = toggle auto ──────────────────
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== "Space") return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      e.preventDefault();
+      if (e.repeat) return;
+
+      if (e.ctrlKey) {
+        const now = Date.now();
+        if (now - lastSpaceRef.current < 400) {
+          toggleAuto();
+          lastSpaceRef.current = 0;
+        } else {
+          lastSpaceRef.current = now;
+        }
+        return;
+      }
+
+      if (!disabled && !rolling && !autoMode) onRoll();
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [disabled, rolling, autoMode, onRoll]);
+
+  // ── Mouse: Ctrl + double-click = toggle auto ──────────────────────────────
+  function handleDiceDoubleClick(e: React.MouseEvent) {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    toggleAuto();
+  }
+
+  // ── Mobile: triple tap on dice = toggle auto ──────────────────────────────
+  function handleTouchStart() {
+    tapCountRef.current += 1;
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    if (tapCountRef.current >= 3) {
+      toggleAuto();
+      tapCountRef.current = 0;
+    } else {
+      tapTimerRef.current = setTimeout(() => { tapCountRef.current = 0; }, 600);
+    }
   }
 
   return (
@@ -61,12 +107,13 @@ export default function DiceRoller({ value, rolling, disabled, onRoll }: DiceRol
         </div>
       )}
 
-      {/* 3-D dice — Ctrl+dblclick to toggle auto */}
+      {/* Dice */}
       <div
         className={`relative cursor-pointer ${rolling ? "animate-dice-roll" : ""}`}
         style={{ width: 72, height: 72 }}
         onDoubleClick={handleDiceDoubleClick}
-        title="Ctrl + double-click to toggle auto-roll"
+        onTouchStart={handleTouchStart}
+        title="Desktop: Ctrl+dblclick or Ctrl+Space×2 · Mobile: triple tap"
       >
         {/* Top face */}
         <div
@@ -91,7 +138,7 @@ export default function DiceRoller({ value, rolling, disabled, onRoll }: DiceRol
             )}
           </svg>
         </div>
-        {/* Right side (3-D illusion) */}
+        {/* Right side 3-D illusion */}
         <div
           className="absolute rounded-r-lg"
           style={{
@@ -102,7 +149,7 @@ export default function DiceRoller({ value, rolling, disabled, onRoll }: DiceRol
             zIndex: -1,
           }}
         />
-        {/* Bottom face (3-D illusion) */}
+        {/* Bottom face 3-D illusion */}
         <div
           className="absolute rounded-b-lg"
           style={{
@@ -139,9 +186,16 @@ export default function DiceRoller({ value, rolling, disabled, onRoll }: DiceRol
         {autoMode ? "⚡ Auto…" : rolling ? "Rolling…" : "🎲 Roll"}
       </button>
 
+      {/* Hints */}
+      {!autoMode && (
+        <p className="text-[10px] text-center" style={{ color: "rgba(255,255,255,0.2)" }}>
+          <span className="hidden sm:inline">Space to roll · </span>
+          Ctrl+Space×2 or triple tap for auto
+        </p>
+      )}
       {autoMode && (
         <p className="text-[10px] text-center" style={{ color: "rgba(255,255,255,0.3)" }}>
-          Ctrl+dblclick to stop
+          Ctrl+dblclick · Ctrl+Space×2 · triple tap to stop
         </p>
       )}
     </div>
