@@ -19,7 +19,7 @@ export default function Home() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4"
+      className="min-h-screen flex flex-col items-center justify-center p-4"
       style={{ background: "linear-gradient(160deg, #0f2419 0%, #1a3a28 50%, #0a1a12 100%)" }}
     >
       <div
@@ -128,8 +128,22 @@ export default function Home() {
               🛡️ Admin
             </Link>
           </div>
+
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="mt-6 pb-4 text-center">
+        <a
+          href="https://shibinbalachandran.in/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] transition-opacity hover:opacity-70"
+          style={{ color: "rgba(255,255,255,0.2)" }}
+        >
+          Made with ❤️ by Shibin Balachandran
+        </a>
+      </footer>
     </div>
   );
 }
