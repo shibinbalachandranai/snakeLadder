@@ -64,3 +64,24 @@ body {
 .animate-slide-up {
   animation: slide-up 0.22s ease-out;
 }
+
+/* ── Funny profile: token emotion animations ────── */
+@keyframes token-happy-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  28%  { transform: translateY(-7px) scale(1.08); }
+  58%  { transform: translateY(-4px) scale(1.04); }
+}
+
+@keyframes token-scared-shake {
+  0%, 100% { transform: translateX(0); }
+  18%  { transform: translateX(-3px); }
+  38%  { transform: translateX(3px); }
+  58%  { transform: translateX(-2px); }
+  78%  { transform: translateX(2px); }
+}
+
+@keyframes token-swallow {
+  0%   { transform: scale(1);   opacity: 1; }
+  35%  { transform: scale(0.9); opacity: 1; }
+  100% { transform: scale(0);   opacity: 0; }
+}

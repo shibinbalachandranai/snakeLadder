@@ -9,11 +9,12 @@ export default function Home() {
   const [mode, setMode] = useState<"pvp" | "pvc">("pvp");
   const [p1Name, setP1Name] = useState("");
   const [p2Name, setP2Name] = useState("");
+  const [soundProfile, setSoundProfileState] = useState<"classic" | "funny">("classic");
 
   function handleStart() {
     const name1 = p1Name.trim() || "Player 1";
     const name2 = mode === "pvc" ? "Computer" : p2Name.trim() || "Player 2";
-    const params = new URLSearchParams({ mode, p1: name1, p2: name2 });
+    const params = new URLSearchParams({ mode, p1: name1, p2: name2, profile: soundProfile });
     router.push(`/game?${params.toString()}`);
   }
 
@@ -45,6 +46,32 @@ export default function Home() {
         </div>
 
         <div className="px-8 py-6 flex flex-col gap-5">
+          {/* Sound Profile selector */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>
+              Sound Profile
+            </label>
+            <div
+              className="flex rounded-xl overflow-hidden"
+              style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,255,255,0.08)" }}
+            >
+              {(["classic", "funny"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setSoundProfileState(p)}
+                  className="flex-1 py-2.5 text-sm font-semibold transition-all"
+                  style={{
+                    background: soundProfile === p ? "linear-gradient(135deg, #f59e0b, #d97706)" : "transparent",
+                    color: soundProfile === p ? "white" : "rgba(255,255,255,0.5)",
+                    boxShadow: soundProfile === p ? "0 4px 12px rgba(245,158,11,0.4)" : "none",
+                  }}
+                >
+                  {p === "classic" ? "🎵 Classic" : "🎭 Funny Kids"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Mode selector */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-widest mb-2" style={{ color: "rgba(255,255,255,0.4)" }}>

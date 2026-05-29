@@ -18,11 +18,17 @@ import {
   stopBgMusic,
   setMuted,
   isMuted,
+  setBgMuted,
+  isBgMuted,
+  setSoundProfile,
+  type SoundProfile,
 } from "@/lib/sounds";
+
+type Speed = "slow" | "medium" | "fast";
+import type { TokenEmotion } from "@/components/GameBoard";
 import { saveGame } from "@/lib/storage";
 
 const PLAYER_COLORS = ["#6366f1", "#f43f5e"];
-const STEP_MS = 120; // ms per square when animating
 
 function GameScreen() {
   const searchParams = useSearchParams();
@@ -31,6 +37,7 @@ function GameScreen() {
   const mode = (searchParams.get("mode") as "pvp" | "pvc") || "pvp";
   const p1 = searchParams.get("p1") || "Player 1";
   const p2 = searchParams.get("p2") || (mode === "pvc" ? "Computer" : "Player 2");
+  const profile = (searchParams.get("profile") as SoundProfile) || "classic";
 
   const [state, dispatch] = useReducer(gameReducer, {
     ...initialState,
@@ -48,14 +55,31 @@ function GameScreen() {
   const [rolling, setRolling] = useState(false);
   const [highlight, setHighlight] = useState<{ square: number; type: "snake" | "ladder" } | null>(null);
   const [muted, setMutedState] = useState(false);
+  const [bgMutedLocal, setBgMutedLocal] = useState(false);
+  const [speed, setSpeed] = useState<Speed>("fast");
+  const stepMsRef = useRef(120);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const computerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bgStartedRef = useRef(false);
+
+  // Set sound profile once on mount
+  useEffect(() => { setSoundProfile(profile); }, [profile]);
+
+  // Keep stepMsRef current with speed state
+  useEffect(() => {
+    stepMsRef.current = speed === "fast" ? 120 : speed === "medium" ? 200 : 320;
+  }, [speed]);
 
   function toggleMute() {
     const next = !muted;
     setMutedState(next);
     setMuted(next);
+  }
+
+  function toggleBgMute() {
+    const next = !bgMutedLocal;
+    setBgMutedLocal(next);
+    setBgMuted(next);
   }
 
   // Start background music on first interaction
@@ -95,6 +119,8 @@ function GameScreen() {
     }
     // pre < from means over-100 bounce-back — no animation needed (stays)
 
+    const stepMs = stepMsRef.current;
+
     // Animate each step
     steps.forEach((pos, i) => {
       const t = setTimeout(() => {
@@ -104,16 +130,18 @@ function GameScreen() {
           return next;
         });
         playStep();
-      }, i * STEP_MS);
+      }, i * stepMs);
       timersRef.current.push(t);
     });
 
-    const afterSteps = Math.max(steps.length * STEP_MS, 80);
+    const afterSteps = Math.max(steps.length * stepMs, 80);
 
     if (final !== pre) {
       // Capture event info for highlight (closure-safe)
       const eventType = state.lastEvent as "snake" | "ladder";
       const eventSquare = pre;
+      // Funny snake gets extended timing so the swallow + prrrr animation plays in full
+      const funnySnake = profile === "funny" && eventType === "snake";
 
       // Show glow effect on the snake/ladder as soon as steps complete
       const tHL = setTimeout(() => {
@@ -122,20 +150,20 @@ function GameScreen() {
         else playLadder();
       }, afterSteps + 40);
 
-      // Jump to final position after pause
+      // Jump to final position (after swallow for funny snake, sooner otherwise)
       const t1 = setTimeout(() => {
         setDisplayPos((prev) => {
           const next = [...prev] as [number, number];
           next[mover] = final;
           return next;
         });
-      }, afterSteps + 380);
+      }, afterSteps + (funnySnake ? 1050 : 380));
 
       // Clear highlight and finish animation
       const t2 = setTimeout(() => {
         setHighlight(null);
         setAnimating(false);
-      }, afterSteps + 780);
+      }, afterSteps + (funnySnake ? 2800 : 780));
 
       timersRef.current.push(tHL, t1, t2);
     } else {
@@ -188,9 +216,10 @@ function GameScreen() {
     ) return;
 
     if (computerTimerRef.current) clearTimeout(computerTimerRef.current);
-    computerTimerRef.current = setTimeout(doRoll, 1200);
+    const autoDelay = speed === "slow" ? 3200 : speed === "medium" ? 2000 : 1200;
+    computerTimerRef.current = setTimeout(doRoll, autoDelay);
     return () => { if (computerTimerRef.current) clearTimeout(computerTimerRef.current); };
-  }, [state.mode, state.phase, state.currentTurn, rolling, animating, doRoll]);
+  }, [state.mode, state.phase, state.currentTurn, rolling, animating, doRoll, speed]);
 
   // Event toast
   let eventMsg: string | null = null;
@@ -208,6 +237,15 @@ function GameScreen() {
     color: PLAYER_COLORS[i],
     isActive: state.currentTurn === i && state.phase === "playing",
   }));
+
+  // Derive token emotions and snake-eating square for the funny profile
+  const mover = state.lastMover ?? 0;
+  const tokenEmotions: [TokenEmotion, TokenEmotion] = highlight
+    ? mover === 0
+      ? [highlight.type === "ladder" ? "happy" : "scared", "normal"]
+      : ["normal", highlight.type === "ladder" ? "happy" : "scared"]
+    : ["normal", "normal"];
+  const snakeEatingSquare = highlight?.type === "snake" ? highlight.square : null;
 
   return (
     <div
@@ -232,21 +270,39 @@ function GameScreen() {
         >
           🐍 Snake &amp; Ladder 🪜
         </h1>
-        <button
-          onClick={toggleMute}
-          className="w-20 text-right text-xl transition-opacity hover:opacity-80"
-          title={muted ? "Unmute" : "Mute"}
-          style={{ color: "rgba(255,255,255,0.6)" }}
-        >
-          {muted ? "🔇" : "🔊"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleBgMute}
+            className="text-lg transition-opacity hover:opacity-80"
+            title={bgMutedLocal ? "Music off" : "Music on"}
+            style={{ color: "rgba(255,255,255,0.6)" }}
+          >
+            {bgMutedLocal ? "🔕" : "🎵"}
+          </button>
+          <button
+            onClick={toggleMute}
+            className="text-xl transition-opacity hover:opacity-80"
+            title={muted ? "Unmute" : "Mute all"}
+            style={{ color: "rgba(255,255,255,0.6)" }}
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
+        </div>
       </header>
 
       {/* Main */}
       <main className="flex flex-1 flex-col lg:flex-row gap-4 p-4 max-w-5xl mx-auto w-full">
         {/* Board */}
         <div className="flex-1 min-w-0">
-          <GameBoard players={boardPlayers} highlight={highlight} />
+          <GameBoard
+            players={boardPlayers}
+            highlight={highlight}
+            tokenEmotions={profile === "funny" ? tokenEmotions : undefined}
+            snakeEatingSquare={profile === "funny" ? snakeEatingSquare : undefined}
+            playerPositions={displayPos}
+            rollId={state.rollId}
+            soundProfile={profile}
+          />
         </div>
 
         {/* Side panel */}
@@ -279,6 +335,24 @@ function GameScreen() {
               disabled={rollDisabled}
               onRoll={doRoll}
             />
+
+            {/* Speed selector */}
+            <div className="flex gap-1">
+              {(["slow", "medium", "fast"] as Speed[]).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSpeed(s)}
+                  className="px-2 py-1 rounded-lg text-xs capitalize transition-all"
+                  style={{
+                    background: speed === s ? "rgba(99,102,241,0.25)" : "rgba(255,255,255,0.05)",
+                    color: speed === s ? "#a5b4fc" : "rgba(255,255,255,0.35)",
+                    border: `1px solid ${speed === s ? "rgba(99,102,241,0.45)" : "rgba(255,255,255,0.08)"}`,
+                  }}
+                >
+                  {s === "slow" ? "🐢" : s === "medium" ? "🚶" : "⚡"} {s}
+                </button>
+              ))}
+            </div>
 
             {isComputerTurn && !rolling && !animating && (
               <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.4)" }}>
